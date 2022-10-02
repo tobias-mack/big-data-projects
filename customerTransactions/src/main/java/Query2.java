@@ -10,6 +10,7 @@ import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * Write a job(s) that reports for every customer, the number of transactions that customer did and
@@ -90,7 +91,9 @@ public class Query2 {
 
             for(Text t : values){
                 String[] data = t.toString().split("\t");
-                customerName = data[0];
+                if(!Objects.equals(data[0], "")){
+                    customerName = data[0];
+                }
                 transactionCount += Integer.parseInt(data[1]);
                 transactionSum += Integer.parseInt(data[2]);
             }
