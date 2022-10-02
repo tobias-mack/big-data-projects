@@ -54,11 +54,11 @@ public class Query2 {
         }
     }
 
-    public static class TokenizerReducer extends Reducer<IntWritable, Text, IntWritable, Text>{
+    public static class Combiner extends Reducer<IntWritable, Text, IntWritable, Text>{
 
         public void reduce(IntWritable key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
             String customerName = "";
-            double transactionSum = 0;
+            int transactionSum = 0;
             int transactionCount = 0;
 
             for(Text t : values){
@@ -73,7 +73,29 @@ public class Query2 {
                 }
             }
 
-            String string = String.format("%s\t%d\t%f",customerName, transactionCount, transactionSum);
+            String string = String.format("%s\t%d\t%d",customerName, transactionCount, transactionSum);
+            context.write(key, new Text((string)));
+        }
+
+    }
+
+
+    public static class TokenizerReducer extends Reducer<IntWritable, Text, IntWritable, Text>{
+
+        public void reduce(IntWritable key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+            //1	jon	3	15
+            String customerName = "";
+            int transactionSum = 0;
+            int transactionCount = 0;
+
+            for(Text t : values){
+                String[] data = t.toString().split("\t");
+                customerName = data[0];
+                transactionCount += Integer.parseInt(data[1]);
+                transactionSum += Integer.parseInt(data[2]);
+            }
+
+            String string = String.format("%s\t%d\t%d",customerName, transactionCount, transactionSum);
             context.write(key, new Text((string)));
         }
 
@@ -84,7 +106,7 @@ public class Query2 {
         Job job = Job.getInstance(conf, "query2");
         job.setJarByClass(Query2.class);
 
-        //job.setCombinerClass(TokenizerReducer.class);
+        job.setCombinerClass(Combiner.class);
         job.setReducerClass(TokenizerReducer.class);
         job.setOutputKeyClass(IntWritable.class);
         job.setOutputValueClass(Text.class);
