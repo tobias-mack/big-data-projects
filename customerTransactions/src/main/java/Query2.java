@@ -1,4 +1,3 @@
-import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
@@ -6,10 +5,11 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+import java.io.IOException;
 
 /**
  * Write a job(s) that reports for every customer, the number of transactions that customer did and
@@ -42,19 +42,19 @@ public class Query2 {
     public static class TransactionMapper extends Mapper<Object, Text, IntWritable, Text>{
 
         private final static IntWritable one = new IntWritable(1);
-        private IntWritable transactionID = new IntWritable();
+        private IntWritable customerID = new IntWritable();
         private Text transactionTotal = new Text();
 
         public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
             String valueString = value.toString();
             String[] singleTransactionData = valueString.split(",");
-            transactionID.set(Integer.parseInt(singleTransactionData[TransactionConstants.transID]));
+            customerID.set(Integer.parseInt(singleTransactionData[TransactionConstants.custID]));
             transactionTotal.set(singleTransactionData[TransactionConstants.transTotal]);
-            context.write(transactionID, new Text("transactions:"+transactionTotal));
+            context.write(customerID, new Text("transactions:"+transactionTotal));
         }
     }
 
-    public static class TokenizerReducer extends Reducer<IntWritable, Iterable<Text>, IntWritable, Object>{
+    public static class TokenizerReducer extends Reducer<IntWritable, Text, IntWritable, Text>{
 
         public void reduce(IntWritable key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
             String customerName = "";
@@ -73,25 +73,21 @@ public class Query2 {
                 }
             }
 
-            String string = String.format("%d\t%f", transactionCount, transactionSum);
+            String string = String.format("%s\t%d\t%f",customerName, transactionCount, transactionSum);
             context.write(key, new Text((string)));
         }
 
     }
 
     public void debug(String[] args) throws Exception {
-        System.setProperty("hadoop.home.dir", "C://hadoop-3.3.4//");
         Configuration conf = new Configuration();
         Job job = Job.getInstance(conf, "query2");
         job.setJarByClass(Query2.class);
-        //job.setMapperClass(Query2.CustomerMapper.class);
-        //job.setMapperClass(Query2.TransactionMapper.class);
-        job.setCombinerClass(TokenizerReducer.class);
+
+        //job.setCombinerClass(TokenizerReducer.class);
         job.setReducerClass(TokenizerReducer.class);
         job.setOutputKeyClass(IntWritable.class);
-        job.setOutputValueClass(IntWritable.class);
-        /*FileInputFormat.addInputPath(job, new Path(args[0]));
-        FileInputFormat.addInputPath(job, new Path(args[1]));*/
+        job.setOutputValueClass(Text.class);
 
         MultipleInputs.addInputPath(job, new Path(args[0]), TextInputFormat.class, CustomerMapper.class);
         MultipleInputs.addInputPath(job, new Path(args[1]), TextInputFormat.class, TransactionMapper.class);
@@ -104,14 +100,11 @@ public class Query2 {
         Configuration conf = new Configuration();
         Job job = Job.getInstance(conf, "query2");
         job.setJarByClass(Query2.class);
-        //job.setMapperClass(Query2.CustomerMapper.class);
-        //job.setMapperClass(Query2.TransactionMapper.class);
+
         job.setCombinerClass(TokenizerReducer.class);
         job.setReducerClass(TokenizerReducer.class);
         job.setOutputKeyClass(IntWritable.class);
         job.setOutputValueClass(IntWritable.class);
-        /*FileInputFormat.addInputPath(job, new Path(args[0]));
-        FileInputFormat.addInputPath(job, new Path(args[1]));*/
 
         MultipleInputs.addInputPath(job, new Path(args[0]), TextInputFormat.class, CustomerMapper.class);
         MultipleInputs.addInputPath(job, new Path(args[1]), TextInputFormat.class, TransactionMapper.class);
