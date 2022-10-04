@@ -126,7 +126,7 @@ public class Query2 {
         Job job = Job.getInstance(conf, "query2");
         job.setJarByClass(Query2.class);
 
-        job.setCombinerClass(TokenizerReducer.class);
+        job.setCombinerClass(Combiner.class);
         job.setReducerClass(TokenizerReducer.class);
         job.setOutputKeyClass(IntWritable.class);
         job.setOutputValueClass(IntWritable.class);
