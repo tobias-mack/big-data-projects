@@ -129,7 +129,7 @@ public class Query2 {
         job.setCombinerClass(Combiner.class);
         job.setReducerClass(TokenizerReducer.class);
         job.setOutputKeyClass(IntWritable.class);
-        job.setOutputValueClass(IntWritable.class);
+        job.setOutputValueClass(Text.class);
 
         MultipleInputs.addInputPath(job, new Path(args[0]), TextInputFormat.class, CustomerMapper.class);
         MultipleInputs.addInputPath(job, new Path(args[1]), TextInputFormat.class, TransactionMapper.class);
