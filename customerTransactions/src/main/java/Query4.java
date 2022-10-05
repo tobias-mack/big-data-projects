@@ -18,11 +18,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class Query4 {
 
-    public static class TokenizerMapper extends Mapper<Object, Text, IntWritable, IntWritable> {
+    public static class TokenizerMapper extends Mapper<Object, Text, IntWritable, Text> {
         private final HashMap<Integer, Integer> map = new HashMap<>();
         private IntWritable countryCode = new IntWritable();
         private IntWritable transactionTotal = new IntWritable();
@@ -53,20 +54,26 @@ public class Query4 {
             countryCode.set(map.get(customerID));
             transactionTotal.set(Integer.parseInt(splitLine[TransactionConstants.transTotal]));
 
-            context.write(countryCode, transactionTotal);
+            String string = String.format("%d,%d",customerID, transactionTotal.get());
+            context.write(countryCode, new Text(string));
         }
     }
 
-    public static class TokenizerReducer extends Reducer<IntWritable, IntWritable, IntWritable, Text> {
+    public static class TokenizerReducer extends Reducer<IntWritable, Text, IntWritable, Text> {
 
-        public void reduce(IntWritable key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
+        public void reduce(IntWritable key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
             int transMin = 1000, transMax = 0;
-            int customerCount = 0;
+            ArrayList<Integer> custIDs = new ArrayList<>();
 
-            for (IntWritable t : values) {
-                int transTotal = t.get();
-                customerCount++; //TODO: customercount not correct yet ! duplications through cashing
+            for (Text t : values) {
+                String[] data = t.toString().split(",");
 
+                int custID = Integer.parseInt(data[0]);
+                if(!custIDs.contains(custID)){
+                    custIDs.add(custID);
+                }
+
+                int transTotal = Integer.parseInt(data[1]);
                 if (transTotal < transMin) {
                     transMin = transTotal;
                 }
@@ -77,7 +84,7 @@ public class Query4 {
             }
 
             String string = String.format("CountryCode: %d\t Customer: %d\tMinTransTotal: %d\tMaxTransTotal: %d",
-                    key.get(), customerCount, transMin, transMax);
+                    key.get(), custIDs.size(), transMin, transMax);
             context.write(key, new Text((string)));
         }
     }
@@ -91,7 +98,7 @@ public class Query4 {
         job.addCacheFile(new Path(args[0]).toUri());
 
         job.setMapOutputKeyClass(IntWritable.class);
-        job.setMapOutputValueClass(IntWritable.class);
+        job.setMapOutputValueClass(Text.class);
 
         job.setMapperClass(Query4.TokenizerMapper.class);
         job.setReducerClass(Query4.TokenizerReducer.class);
