@@ -10,7 +10,6 @@ import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.IOException;
-import java.util.Objects;
 
 /**
  * Write a job(s) that joins the Customers and Transactions datasets (based on the customer ID)

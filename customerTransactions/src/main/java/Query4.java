@@ -22,79 +22,77 @@ import java.util.HashMap;
 
 public class Query4 {
 
-    public static class TokenizerMapper extends Mapper<Object, Text, Text, Text> {
+    public static class TokenizerMapper extends Mapper<Object, Text, IntWritable, IntWritable> {
         private final HashMap<Integer, Integer> map = new HashMap<>();
+        private IntWritable countryCode = new IntWritable();
+        private IntWritable transactionTotal = new IntWritable();
 
-        public void setup(Context context) throws IOException{
+        public void setup(Context context) throws IOException {
             String[] splitLine;
-            URI[] uris = context.getCacheFiles();
+            URI[] files = context.getCacheFiles();
 
-            FSDataInputStream customerData = FileSystem.get((context).getConfiguration()).open(new Path(uris[0]));
-            BufferedReader bufferReader = new BufferedReader(new InputStreamReader(customerData));
-            String line = bufferReader.readLine();
-            while (line != null){
+            FileSystem fs = FileSystem.get(context.getConfiguration());
+            Path getFilePath = new Path(files[0].toString());
+            BufferedReader read = new BufferedReader(new InputStreamReader(fs.open(getFilePath)));
+            String line = read.readLine();
+
+            while (line != null) {
                 splitLine = line.split(",");
-                int customerID = Integer.parseInt(splitLine[0]);
-                int countryCode = Integer.parseInt(splitLine[4]);
+                int customerID = Integer.parseInt(splitLine[CustomerConstants.id]);
+                int countryCode = Integer.parseInt(splitLine[CustomerConstants.countryCode]);
                 map.put(customerID, countryCode);
-                line = bufferReader.readLine();
+                line = read.readLine();
             }
         }
 
         public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
-            Text cc = new Text();
-            FloatWritable trans = new FloatWritable();
             String line = value.toString();
             String[] splitLine = line.split(",");
-            int customerID = Integer.parseInt(splitLine[1]);
-            String transTotal = splitLine[2];
-            int countryCode = map.get(customerID);
-//            trans.set(Float.parseFloat(transTotal.trim()));
-            cc.set(countryCode+"");
-            context.write(cc, new Text(transTotal));
+
+            int customerID = Integer.parseInt(splitLine[TransactionConstants.custID]);
+            countryCode.set(map.get(customerID));
+            transactionTotal.set(Integer.parseInt(splitLine[TransactionConstants.transTotal]));
+
+            context.write(countryCode, transactionTotal);
         }
     }
 
-    public static class TokenizerReducer extends Reducer<Text, Text, Text, Text> {
+    public static class TokenizerReducer extends Reducer<IntWritable, IntWritable, IntWritable, Text> {
 
-        public void reduce(Text key, Iterable<Text> iterator, Context context) throws IOException, InterruptedException {
-            float transMin = 1000F, transMax = 0F, transVal;
-            int count = 0;
-            String[] values;
-            int countryCode = 0;
-            for (Text val : iterator) {
-                count++;
-                values = val.toString().split(",");
+        public void reduce(IntWritable key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
+            int transMin = 1000, transMax = 0;
+            int customerCount = 0;
 
-                if(values[0].equals("transaction")){
-                    transVal = Float.parseFloat(values[3]);
-                    if (transVal < transMin) {
-                        transMin = transVal;
-                    }
-                    else if (transVal > transMax) {
-                        transMax = transVal;
-                    }
+            for (IntWritable t : values) {
+                int transTotal = t.get();
+                customerCount++; //TODO: customercount not correct yet ! duplications through cashing
+
+                if (transTotal < transMin) {
+                    transMin = transTotal;
                 }
-                else{
-                    countryCode = Integer.parseInt(values[1]);
+                if (transTotal > transMax) {
+                    transMax = transTotal;
                 }
 
             }
 
-            Text output = new Text();
-            output.set(", "+countryCode+", " + count + ", " + transMin + ", " + transMax);
-            context.write(key, output);
+            String string = String.format("CountryCode: %d\t Customer: %d\tMinTransTotal: %d\tMaxTransTotal: %d",
+                    key.get(), customerCount, transMin, transMax);
+            context.write(key, new Text((string)));
         }
     }
 
     public void debug(String[] args) throws IOException, InterruptedException, ClassNotFoundException, URISyntaxException {
-        System.setProperty("hadoop.home.dir", "C://hadoop-3.3.4//");
+        System.setProperty("hadoop.home.dir", "/home/twobeers/Downloads/hadoop-3.3.4");
+        //System.setProperty("hadoop.home.dir", "C://hadoop-3.3.4//");
 
-        Job job = Job.getInstance(new Configuration(), "Query 3");
+        Job job = Job.getInstance(new Configuration(), "Query4");
         job.setJarByClass(Query4.class);
         job.addCacheFile(new Path(args[0]).toUri());
-        job.setMapOutputKeyClass(Text.class);
+
+        job.setMapOutputKeyClass(IntWritable.class);
         job.setMapOutputValueClass(IntWritable.class);
+
         job.setMapperClass(Query4.TokenizerMapper.class);
         job.setReducerClass(Query4.TokenizerReducer.class);
         job.setOutputKeyClass(Text.class);
@@ -109,9 +107,10 @@ public class Query4 {
         System.setProperty("hadoop.home.dir", "C://hadoop-3.3.4//");
         Configuration conf = new Configuration();
 
-        Job job = Job.getInstance(new Configuration(), "Query 3");
+        Job job = Job.getInstance(new Configuration(), "Query4");
         job.setJarByClass(Query4.class);
         job.addCacheFile(new Path(args[0]).toUri());
+
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(IntWritable.class);
         job.setMapperClass(Query4.TokenizerMapper.class);
