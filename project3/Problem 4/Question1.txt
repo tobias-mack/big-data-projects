@@ -1,0 +1,107 @@
+1. Write a CRUD operation(s) that inserts the following new records into the collection ==>
+
+db.test.insertMany([
+  {
+      "_id" : 20,
+      "name" : {
+          "first" : "Alex",
+          "last" : "Chen"
+      },
+      "birth" : ISODate("1933-08-27T04:00:00Z"),
+      "death" : ISODate("1984-11-07T04:00:00Z"),
+      "contribs" : [
+          "C++",
+          "Simula"
+      ],
+      "awards" : [
+          {
+              "award" : "WPI Award",
+              "year" : 1977,
+              "by" : "WPI"
+          }
+      ]
+  },
+  {
+      "_id" : 30,
+      "name" : {
+          "first" : "David",
+          "last" : "Mark"
+      },
+      "birth" : ISODate("1911-04-12T04:00:00Z"),
+      "death" : ISODate("2000-11-07T04:00:00Z"),
+      "contribs" : [
+          "C++",
+          "FP",
+          "Lisp"
+      ],
+      "awards" : [
+          {
+              "award" : "WPI Award",
+              "year" : 1963,
+              "by" : "WPI"
+          },
+          {
+              "award" : "Turing Award",
+              "year" : 1966,
+              "by" : "ACM"
+          }
+      ]
+  }
+])
+
+=====================================================================================================================================================
+
+2.  Report all documents of people who got less than 3 awards or have contributed in “FP” ==> 
+
+db.test.find({ $or: [{$where: "this.awards ? this.awards.length < 3 : false"},{contribs: "FP"}]});
+
+=====================================================================================================================================================
+
+3.  Update the document of “Guido van Rossum” to add “OOP” to the contribution list ==>
+
+db.test.updateOne({ name: {"first": "Guido", "last": "van Rossum" }}, {$push: {contribs: "OOP"}});
+
+=====================================================================================================================================================
+
+4. Insert a new filed of type array, called “comments”, into the document of “Alex Chen” storing the following comments: “He taught in 3 universities”, “died from cancer”, “lived in CA” ==> 
+
+db.test.updateOne({name: {"first": "Alex","last": "Chen"}}, {$set: {comments: ["He taught in 3 universities","died from cancer","lived in CA"]}});
+
+=====================================================================================================================================================
+
+5. For each contribution by “Alex Chen”, say X, and list the peoples’ names (first and last) who have contribution X. E.g., Alex Chen has two contributions in “C++” and “Simula”. Then, the output should be similar to:
+a. {Contribution: “C++”, People: [{first: “Alex”, last: “Chen”}, {first: “David”, last: “Mark”}]}, { Contribution: “Simula”, ....} ==>
+
+var c = []
+db.test.find({name: {"first": "Alex","last": "Chen"}}).forEach(function(u) {c = u.contribs});
+cursor = db.test.aggregate([{$unwind: "$contribs"},{$match: {'contribs': {$in: c}}},{$group: {_id: "$contribs",people: {$push: "$name"}}}]);
+
+=====================================================================================================================================================
+
+6. Report the distinct organization that gave awards. This information can befound in the “by” field inside the “awards” array. The output should be an array of distinct values, e.g., [“wpi’, “acm’, ...] ==>
+
+db.test.distinct("awards.by")
+
+=====================================================================================================================================================
+
+7. Delete from all documents any award given in 2011 ==>
+
+db.test.update({}, {$pull: {"awards": {year: {$in: [2011, "2011"]}}}}, {multi: true})
+
+=====================================================================================================================================================
+
+8. Report only the names (first and last) of those individuals who won at least two awards in 2001 ==>
+
+db.test.aggregate({$project: {"first": "$name.first","last": "$name.last","awards2001": {$size: {$filter: {input: {$ifNull: ["$awards", []]},as: "aw2001",cond: {$eq: ["$$aw2001.year", 2001]}}}}}}, {$group: {_id: {"first": "$first","last": "$last"},awards: {$sum: "$awards2001"}}}, {$match: {awards: {$gte: 2}}})
+
+=====================================================================================================================================================
+
+9. Report the document with the largest id. First, you need to find the largest _id (using a CRUD statement), and then use that to report the corresponding document ==>
+
+db.test.find().sort({_id: -1}).limit(1)
+
+=====================================================================================================================================================
+
+10. Report only one document where one of the awards is given by “ACM” ==>
+
+db.test.find({"awards.by" : "ACM"}).limit(1)

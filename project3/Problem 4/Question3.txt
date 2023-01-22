@@ -1,0 +1,56 @@
+1. Assume we model the records and relationships in Figure 1 using the Parent-Referencing model (Slide 4 in MongoDB-3). Write a query to report the ancestors of “MongoDB”. The output should be an array containing values [{Name: “Databases”, Level: 1}, {Name: “Programming”, Level: 2}, {Name: “Books”, Level: 3}]
+* Note: “Level” is the distance from the “MongoDB” node to the other node. It should be computed in your code ==> 
+
+var childCat = db.categories.findOne({_id: "MongoDB"});
+var parentCat = db.categories.findOne({ _id: childCat.parent});
+
+var level = 0;
+var parents = [];
+
+while (parentCat) {
+    level++;
+    parents.push({"Name": parentCat._id,"Level": level});
+    parentCat = db.categories.findOne({_id: parentCat.parent});
+}
+parents;
+
+=====================================================================================================================================================
+
+2.  Assume we model the records and relationships in Figure 1 using the Parent-Referencing model (Slide 4 in MongoDB-3). You are given only the root node, i.e., _id = “Books”, and write a query that reports the height of the tree. ==>
+
+var root = db.categories.findOne({parent: "Books"});
+var level = 1;
+
+while (root) {
+    root = db.categories.findOne({parent: root["_id"]});
+    level ++;
+
+}
+level
+
+=====================================================================================================================================================
+
+3.  Assume we model the records and relationships in Figure 1 using the Child-Referencing model (Slide 9 in MongoDB-3). Write a query to report the parent of “dbm”. ==>
+
+db.categoriesOne.find({children:"dbm"})
+
+=====================================================================================================================================================
+
+4. Assume we model the records and relationships in Figure 1 using the Child-Referencing model (Slide 9 in MongoDB-3). Write a query to report the descendants of “Books”. The output should be an array containing values [“Programming”, “Languages”, “Databases”, “MongoDB”, “dbm”] ==>
+
+var root = db.categoriesOne.findOne({_id: "Books"});
+var next = [];
+var descendants = [];
+
+for (child in root.children) {
+    next.push(root.children[child]);
+}
+while (next.length > 0) {
+    var current = next.shift();
+    descendants.push(current);
+    var child = db.categoriesOne.findOne({_id: current});
+    for (i in child.children) {
+        next.push(child.children[i])
+    }
+}
+descendants;

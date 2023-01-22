@@ -1,0 +1,24 @@
+1.  Write an aggregation query that group by the award name, i.e., the “award” field inside the “awards” array, and reports the count of each award ==>
+
+db.test.aggregate([{"$unwind": "$awards"},{"$group": {"_id": "$awards.award","count": {$sum: 1}}}])
+
+=====================================================================================================================================================
+
+2.  Write an aggregation query that groups by the birth year, i.e., the year within the “birth” field, and report an array of _ids for each birth year ==>
+
+db.test.aggregate({$group: {_id: {$year: "$birth"},id: {$push: "$_id"}}})
+
+=====================================================================================================================================================
+
+3. Report the document with the smallest and largest _ids. You first need to find the values of the smallest and largest and then report their documents ==> 
+
+db.test.aggregate([{$group: {_id : '', max: {$max : '$_id'}}}])
+db.test.aggregate([{$group: {_id : '', min: {$min : '$_id'}}}])
+
+db.test.aggregate([
+  { $facet: {
+    max: [{$group: {_id : '', max: {$max : '$_id'}}}],
+    min:  [{$group: {_id : '', min: {$min : '$_id'}}}]
+  }}
+])
+
